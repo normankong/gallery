@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Street Brawler II</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --ground-height: 80px;
+            --p1-color: #fff; /* White Gi */
+            --p2-color: #d32f2f; /* Red Gi */
+            --skin-color: #ffcc99;
+            --bg-sky-top: #2b32b2;
+            --bg-sky-btm: #1488cc;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Press Start 2P', cursive;
+            touch-action: none; /* Prevent mobile scroll */
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, var(--bg-sky-top), var(--bg-sky-btm));
+            overflow: hidden;
+        }
+
+        /* --- Background Art --- */
+        .scenery {
+            position: absolute;
+            width: 100%;
+            pointer-events: none;
+        }
+        .sun {
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 150px;
+            background: #ffcc00;
+            border-radius: 50%;
+            box-shadow: 0 0 40px #ffcc00;
+        }
+        .buildings {
+            bottom: var(--ground-height);
+            width: 100%;
+            height: 200px;
+            background: 
+                linear-gradient(90deg, #1a1a2e 10px, transparent 1% 100%),
+                linear-gradient(#1a1a2e, #16213e);
+            background-size: 40px 100%, 100% 100%;
+            opacity: 0.6;
+        }
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: var(--ground-height);
+            background: #3e2723;
+            border-top: 4px solid #1a1a1a;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        /* --- UI / HUD --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            color: #fff;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .health-bar-container {
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .health-bar-border {
+            height: 30px;
+            background: #333;
+            border: 4px solid #fff;
+            position: relative;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: #ffeb3b;
+            width: 100%;
+            transition: width 0.2s ease-out, background 0.2s;
+        }
+        .health-fill.danger { background: #f44336; }
+
+        .name-tag { margin-bottom: 5px; font-size: 14px; letter-spacing: 2px; }
+
+        #timer {
+            font-size: 40px;
+            color: #fff;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border: 2px solid #fff;
+        }
+
+        /* --- AI Commentary Ticker --- */
+        #ai-ticker-container {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            text-align: center;
+            z-index: 90;
+            pointer-events: none;
+        }
+        #ai-ticker {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00d2ff;
+            color: #00d2ff;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.5;
+            border-radius: 4px;
+            text-shadow: 1px 1px 0 #000;
+            box-shadow: 0 0 10px #00d2ff;
+            min-height: 20px;
+            transition: opacity 0.5s;
+        }
+        .ticker-label {
+            display: block;
+            font-size: 8px;
+            color: #fff;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+
+        /* --- Screens --- */
+        #start-screen, #game-over-screen, #dojo-modal {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+        .hidden { display: none !important; }
+        
+        h1 { font-size: 48px; color: #ff3d00; text-shadow: 4px 4px #ffeb3b; margin-bottom: 20px; transform: skewX(-10deg); }
+        .blink { animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        
+        button {
+            background: #d32f2f;
+            color: #fff;
+            border: 4px solid #fff;
+            padding: 15px 30px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+        
+        .btn-ai {
+            background: #4a148c; /* Purple for AI */
+            border-color: #e040fb;
+        }
+
+        #controls-hint {
+            margin-top: 40px;
+            font-size: 12px;
+            line-height: 1.8;
+            color: #ccc;
+            text-align: left;
+            background: #222;
+            padding: 20px;
+            border: 2px solid #555;
+        }
+        .key { color: #ffeb3b; }
+
+        /* --- Dojo Modal Specifics --- */
+        #dojo-modal {
+            background: rgba(20, 20, 40, 0.95);
+        }
+        #dojo-chat-area {
+            width: 80%;
+            max-width: 600px;
+            height: 200px;
+            background: #000;
+            border: 2px solid #4a148c;
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #e0e0e0;
+        }
+        #dojo-input {
+            width: 80%;
+            max-width: 600px;
+            padding: 10px;
+            font-family: 'Press Start 2P', cursive;
+            background: #222;
+            color: white;
+            border: 2px solid #fff;
+            margin-bottom: 10px;
+        }
+        .sensei-msg { color: #e040fb; margin-bottom: 10px; }
+        .user-msg { color: #fff; margin-bottom: 10px; opacity: 0.8; }
+
+        /* --- Characters --- */
+        .fighter {
+            position: absolute;
+            bottom: var(--ground-height);
+            width: 80px;
+            height: 140px;
+            z-index: 10;
+        }
+
+        /* Internal Character Structure (The "Sprite") */
+        .sprite {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.1s;
+        }
+
+        /* Hitboxes for debugging (hidden usually) */
+        .hitbox {
+            position: absolute;
+            background: rgba(255, 0, 0, 0.3);
+            display: none; 
+        }
+
+        /* CSS Art for Fighter */
+        .head {
+            position: absolute;
+            top: 0; left: 20px;
+            width: 40px; height: 35px;
+            background: var(--skin-color);
+            border-radius: 4px;
+            z-index: 5;
+        }
+        .bandana {
+            position: absolute;
+            top: 5px; left: 0; width: 100%; height: 8px;
+            background: red;
+            z-index: 6;
+        }
+        .torso {
+            position: absolute;
+            top: 35px; left: 10px;
+            width: 60px; height: 60px;
+            background: var(--gi-color); /* Variable */
+            z-index: 4;
+            border-radius: 5px;
+        }
+        .belt {
+            position: absolute;
+            top: 85px; left: 10px;
+            width: 60px; height: 10px;
+            background: #000;
+            z-index: 5;
+        }
+        .arm {
+            position: absolute;
+            width: 20px; height: 50px;
+            background: var(--skin-color);
+            z-index: 3;
+            top: 40px;
+        }
+        .arm.left { left: -5px; }
+        .arm.right { right: -5px; }
+        
+        .leg {
+            position: absolute;
+            width: 25px; height: 50px;
+            background: var(--gi-color);
+            top: 90px;
+            z-index: 2;
+        }
+        .leg.left { left: 10px; }
+        .leg.right { right: 10px; }
+
+        /* Player Specific Colors */
+        #p1 .torso, #p1 .leg { --gi-color: var(--p1-color); }
+        #p2 .torso, #p2 .leg { --gi-color: var(--p2-color); }
+        #p2 .bandana { background: transparent; } /* Ken doesn't wear headband usually */
+        #p2 .head { background: #ffcc99; box-shadow: inset 0 10px 0 #ffd700; } /* Blonde hair */
+
+        /* --- Animations / Poses --- */
+        
+        /* Facing Directions */
+        .facing-right .sprite { transform: scaleX(1); }
+        .facing-left .sprite { transform: scaleX(-1); }
+
+        /* Crouch */
+        .crouch .sprite { transform-origin: bottom center; transform: scaleY(0.7); }
+        .facing-left.crouch .sprite { transform: scaleX(-1) scaleY(0.7); }
+
+        /* Jump */
+        .jump .leg { height: 30px; top: 90px; }
+
+        /* Punch */
+        .punching .arm.right {
+            height: 20px; width: 60px;
+            right: -40px; top: 45px;
+            background: var(--skin-color);
+            box-shadow: 40px 0 0 red; /* Glove blur */
+        }
+
+        /* Kick */
+        .kicking .leg.right {
+            height: 20px; width: 70px;
+            right: -40px; top: 70px;
+            transform: rotate(-15deg);
+        }
+
+        /* Stun/Hurt */
+        .stunned .sprite {
+            filter: brightness(3) sepia(1) hue-rotate(50deg);
+            transform: translate(-5px, 0);
+            animation: shake 0.1s infinite;
+        }
+        @keyframes shake { 0% { left: 0; } 50% { left: 5px; } 100% { left: 0; } }
+
+        /* --- Projectile (Hadouken) --- */
+        .projectile {
+            position: absolute;
+            width: 40px; height: 40px;
+            background: radial-gradient(circle, #fff, #00d2ff, #2b32b2);
+            border-radius: 50%;
+            z-index: 20;
+            box-shadow: 0 0 20px #00d2ff;
+        }
+
+        /* --- FX --- */
+        .hit-spark {
+            position: absolute;
+            width: 60px; height: 60px;
+            background: radial-gradient(circle, #fff, orange, red, transparent);
+            border-radius: 50%;
+            z-index: 50;
+            pointer-events: none;
+            animation: sparkAnim 0.2s forwards;
+        }
+        @keyframes sparkAnim {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .ko-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 100px;
+            color: red;
+            text-shadow: 5px 5px 0 #fff;
+            z-index: 150;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .ko-text.show { transform: translate(-50%, -50%) scale(1); }
+
+        /* Loading indicator */
+        .loading-pulse {
+            animation: pulse 1.5s infinite;
+            opacity: 0.7;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Scenery -->
+    <div class="scenery sun"></div>
+    <div class="scenery buildings"></div>
+    <div class="ground"></div>
+
+    <!-- UI -->
+    <div id="ui-layer">
+        <div class="health-bar-container">
+            <div class="name-tag">RYU (P1)</div>
+            <div class="health-bar-border"><div id="p1-health" class="health-fill"></div></div>
+        </div>
+        <div id="timer">99</div>
+        <div class="health-bar-container" style="align-items: flex-end;">
+            <div class="name-tag">KEN (CPU)</div>
+            <div class="health-bar-border" style="width: 100%"><div id="p2-health" class="health-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- AI Ticker -->
+    <div id="ai-ticker-container">
+        <div id="ai-ticker">
+            <span class="ticker-label">✨ AI ANNOUNCER</span>
+            <span id="ai-text">Insert Coin...</span>
+        </div>
+    </div>
+
+    <!-- KO Graphic -->
+    <div id="ko-msg" class="ko-text">K.O.</div>
+
+    <!-- Fighters -->
+    <div id="p1" class="fighter facing-right" style="left: 100px;">
+        <div class="sprite">
+            <div class="head"><div class="bandana"></div></div>
+            <div class="torso"></div>
+            <div class="belt"></div>
+            <div class="arm left"></div>
+            <div class="arm right"></div>
+            <div class="leg left"></div>
+            <div class="leg right"></div>
+        </div>
+    </div>
+
+    <div id="p2" class="fighter facing-left" style="left: 600px;">
+        <div class="sprite">
+            <div class="head"><div class="bandana"></div></div>
+            <div class="torso"></div>
+            <div class="belt"></div>
+            <div class="arm left"></div>
+            <div class="arm right"></div>
+            <div class="leg left"></div>
+            <div class="leg right"></div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1>STREET BRAWLER II</h1>
+        <p class="blink">INSERT COIN</p>
+        <button id="btn-start">START GAME</button>
+        <button id="btn-2p">2 PLAYER MODE</button>
+        <button id="btn-sensei" class="btn-ai">✨ SENSEI'S DOJO</button>
+        
+        <div id="controls-hint">
+            <strong>PLAYER 1</strong><br>
+            Move: <span class="key">WASD</span><br>
+            Punch: <span class="key">F</span> | Kick: <span class="key">G</span><br>
+            Fireball: <span class="key">E</span><br><br>
+            <strong>PLAYER 2 / CPU</strong><br>
+            Move: <span class="key">Arrows</span><br>
+            Punch: <span class="key">K</span> | Kick: <span class="key">L</span><br>
+            Fireball: <span class="key">O</span>
+        </div>
+    </div>
+
+    <!-- Dojo Modal -->
+    <div id="dojo-modal" class="hidden">
+        <h2 style="color: #e040fb; margin-bottom: 20px;">✨ SENSEI'S DOJO ✨</h2>
+        <div id="dojo-chat-area">
+            <div class="sensei-msg">SENSEI: Welcome, young warrior. Ask me for strategy, controls, or wisdom.</div>
+        </div>
+        <input type="text" id="dojo-input" placeholder="Type your question..." autocomplete="off">
+        <div>
+            <button id="btn-ask-sensei" class="btn-ai" style="padding: 10px 20px;">ASK</button>
+            <button id="btn-close-dojo" style="padding: 10px 20px; background: #555; border-color: #888;">BACK</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="hidden">
+        <h1 id="winner-text">YOU WIN!</h1>
+        <div id="ai-victory-speech" style="width: 60%; margin: 20px auto; color: #00d2ff; font-size: 14px; min-height: 40px; border: 1px solid #00d2ff; padding: 15px; background: rgba(0,0,0,0.8);">
+            <!-- AI Content -->
+        </div>
+        <button onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+</div>
+
+<script>
+/**
+ * STREET BRAWLER II - Engine
+ */
+
+// --- Gemini API Configuration ---
+const apiKey = ""; // Set by environment
+const ANNOUNCER_SYSTEM_PROMPT = "You are an excited, high-energy arcade fighting game announcer from the 90s. Keep your responses short (1-2 sentences max), punchy, and dramatic. Use ALL CAPS occasionally for effect.";
+const SENSEI_SYSTEM_PROMPT = "You are a wise, old martial arts master in the game Street Brawler II. Player 1 is Ryu, Player 2 is Ken. Controls: P1 (WASD move, F punch, G kick, E fireball), P2 (Arrows move, K punch, L kick, O fireball). Give brief, helpful strategy advice or controls help. Keep answers under 3 sentences.";
+
+async function callGemini(prompt, systemInstruction, targetElementId) {
+    if (!apiKey) return;
+    
+    const targetEl = document.getElementById(targetElementId);
+    if(targetEl) {
+        targetEl.classList.add('loading-pulse');
+        if(targetElementId === 'ai-text') targetEl.innerText = "Uplink established...";
+    }
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            })
+        });
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Communication Error";
+        
+        if(targetEl) {
+            targetEl.innerText = text;
+            targetEl.classList.remove('loading-pulse');
+        }
+        return text;
+    } catch (error) {
+        console.error("Gemini Error:", error);
+        if(targetEl) {
+            targetEl.innerText = "System Malfunction.";
+            targetEl.classList.remove('loading-pulse');
+        }
+    }
+}
+
+// --- Audio Engine (Synthesizer) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const Sound = {
+    playTone: (freq, type, duration) => {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    },
+    punch: () => {
+        // Noise buffer for impact
+        const duration = 0.1;
+        const bufferSize = audioCtx.sampleRate * duration;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        noise.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+    },
+    fireball: () => {
+        Sound.playTone(400, 'sawtooth', 0.4);
+        setTimeout(() => Sound.playTone(300, 'sine', 0.4), 100);
+    },
+    jump: () => Sound.playTone(150, 'square', 0.2),
+    block: () => Sound.playTone(100, 'sawtooth', 0.1)
+};
+
+// --- Game Constants & State ---
+const GRAVITY = 0.8;
+const GROUND_Y = 0; // Relative to bottom container
+const WALK_SPEED = 5;
+const JUMP_FORCE = 18;
+const PUNCH_DMG = 5;
+const KICK_DMG = 8;
+const FIREBALL_DMG = 12;
+const GAME_WIDTH = window.innerWidth;
+
+let gameActive = false;
+let isCPU = true;
+let timerInterval;
+let timeLeft = 99;
+
+const keys = {};
+
+// Players
+const p1 = {
+    el: document.getElementById('p1'),
+    hpEl: document.getElementById('p1-health'),
+    x: 100, y: 0, vx: 0, vy: 0,
+    hp: 100,
+    w: 80, h: 140,
+    facing: 1, // 1 right, -1 left
+    state: 'idle', // idle, walk, jump, crouch, attack, stun, dead
+    cooldown: 0,
+    isBlocking: false
+};
+
+const p2 = {
+    el: document.getElementById('p2'),
+    hpEl: document.getElementById('p2-health'),
+    x: GAME_WIDTH - 200, y: 0, vx: 0, vy: 0,
+    hp: 100,
+    w: 80, h: 140,
+    facing: -1,
+    state: 'idle',
+    cooldown: 0,
+    isBlocking: false
+};
+
+const projectiles = [];
+
+// --- Input Handling ---
+window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+// --- Core Game Functions ---
+
+function spawnProjectile(owner, direction, startX, startY) {
+    if(owner.cooldown > 0) return;
+    
+    Sound.fireball();
+    owner.cooldown = 40; // Frames delay
+    owner.el.classList.add('punching'); // Reuse punch animation frame
+    setTimeout(() => owner.el.classList.remove('punching'), 200);
+
+    const div = document.createElement('div');
+    div.className = 'projectile';
+    div.style.left = startX + 'px';
+    div.style.bottom = (startY + 60) + 'px';
+    document.getElementById('game-container').appendChild(div);
+
+    projectiles.push({
+        el: div,
+        x: startX,
+        y: startY + 60,
+        vx: 12 * direction,
+        owner: owner,
+        active: true
+    });
+}
+
+function checkCollision(r1, r2) {
+    return !(r2.left > r1.right || 
+             r2.right < r1.left || 
+             r2.top > r1.bottom || 
+             r2.bottom < r1.top);
+}
+
+function hitPlayer(target, damage, type) {
+    if(target.state === 'dead') return;
+
+    // Block logic (Must be holding back relative to enemy)
+    const activeBlock = target.isBlocking; // Simplified
+    
+    if (activeBlock && type !== 'fireball') {
+        damage = 1; // Chip damage
+        Sound.block();
+    } else {
+        Sound.punch();
+        target.state = 'stun';
+        target.el.classList.add('stunned');
+        createHitSpark(target.x + 40, target.y + 100);
+        setTimeout(() => {
+            target.state = 'idle';
+            target.el.classList.remove('stunned');
+        }, 300);
+    }
+
+    target.hp = Math.max(0, target.hp - damage);
+    target.hpEl.style.width = target.hp + '%';
+    if(target.hp < 30) target.hpEl.classList.add('danger');
+
+    if(target.hp <= 0) {
+        endGame(target === p1 ? 'Player 2' : 'Player 1');
+    }
+}
+
+function createHitSpark(x, y) {
+    const spark = document.createElement('div');
+    spark.className = 'hit-spark';
+    spark.style.left = (x - 30) + 'px';
+    spark.style.bottom = (y - 30) + 'px';
+    document.getElementById('game-container').appendChild(spark);
+    setTimeout(() => spark.remove(), 200);
+}
+
+function attack(attacker, type) {
+    if(attacker.state !== 'idle' && attacker.state !== 'walk' && attacker.state !== 'jump') return;
+    
+    // Set cooldown
+    attacker.cooldown = type === 'punch' ? 20 : 30;
+    
+    // Visual
+    const animClass = type === 'punch' ? 'punching' : 'kicking';
+    attacker.el.classList.add(animClass);
+    Sound.playTone(type === 'punch' ? 200 : 150, 'triangle', 0.1); // Whiff sound
+    
+    // Hitbox calculation
+    // Attack hits slightly in front of player
+    const reach = 60;
+    const hitRect = {
+        left: attacker.facing === 1 ? attacker.x + attacker.w : attacker.x - reach,
+        right: attacker.facing === 1 ? attacker.x + attacker.w + reach : attacker.x,
+        top: attacker.y + 50,
+        bottom: attacker.y + 100
+    };
+
+    // Determine opponent
+    const opponent = attacker === p1 ? p2 : p1;
+    
+    // Opponent rect
+    const oppRect = {
+        left: opponent.x + 20, right: opponent.x + 60,
+        top: opponent.y, bottom: opponent.y + 120
+    };
+
+    if(checkCollision(hitRect, oppRect)) {
+        hitPlayer(opponent, type === 'punch' ? PUNCH_DMG : KICK_DMG, 'melee');
+    }
+
+    // Reset Animation
+    setTimeout(() => {
+        attacker.el.classList.remove(animClass);
+    }, 200);
+}
+
+// --- Player Logic ---
+function updatePlayer(p, controls) {
+    if(p.state === 'stun' || p.state === 'dead') return;
+
+    if(p.cooldown > 0) p.cooldown--;
+
+    // Movement
+    if (controls.left && p.x > 0) {
+        p.vx = -WALK_SPEED;
+        p.facing = -1;
+        p.state = 'walk';
+    } else if (controls.right && p.x < window.innerWidth - p.w) {
+        p.vx = WALK_SPEED;
+        p.facing = 1;
+        p.state = 'walk';
+    } else {
+        p.vx = 0;
+        p.state = 'idle';
+    }
+
+    // Jump
+    if (controls.up && p.y === GROUND_Y) {
+        p.vy = JUMP_FORCE;
+        Sound.jump();
+        p.state = 'jump';
+    }
+
+    // Crouch
+    if (controls.down && p.y === GROUND_Y) {
+        p.vx = 0;
+        p.el.classList.add('crouch');
+        p.isBlocking = true; // Simple crouch block
+    } else {
+        p.el.classList.remove('crouch');
+        p.isBlocking = false;
+    }
+
+    // Physics
+    p.y += p.vy;
+    if (p.y > GROUND_Y) {
+        p.vy -= GRAVITY;
+    } else {
+        p.y = GROUND_Y;
+        p.vy = 0;
+    }
+
+    // Apply Position
+    p.x += p.vx;
+    
+    // DOM Update
+    p.el.style.left = p.x + 'px';
+    p.el.style.bottom = (p.y + 80) + 'px'; // +80 for ground height
+    
+    // Facing Class
+    if(p.facing === 1) {
+        p.el.classList.add('facing-right');
+        p.el.classList.remove('facing-left');
+    } else {
+        p.el.classList.add('facing-left');
+        p.el.classList.remove('facing-right');
+    }
+
+    // Actions
+    if(controls.punch) attack(p, 'punch');
+    if(controls.kick) attack(p, 'kick');
+    if(controls.fireball) spawnProjectile(p, p.facing, p.x + (p.facing * 40), p.y + 40);
+}
+
+// --- CPU AI ---
+let aiTimer = 0;
+let aiAction = { left: false, right: false, up: false, down: false, punch: false, kick: false, fireball: false };
+
+function updateAI() {
+    aiTimer++;
+    
+    // Reaction distance
+    const dist = Math.abs(p1.x - p2.x);
+    
+    // Always face player
+    if(p2.x < p1.x) p2.facing = 1;
+    else p2.facing = -1;
+
+    // Reset triggers
+    aiAction.punch = false;
+    aiAction.kick = false;
+    aiAction.fireball = false;
+    aiAction.up = false;
+
+    // Simple Decision Tree
+    if (aiTimer % 30 === 0) { // Make decision every 0.5s approx
+        // Reset movement
+        aiAction.left = false;
+        aiAction.right = false;
+        aiAction.down = false;
+
+        const rand = Math.random();
+
+        if (dist > 400) {
+            // Far away: Move closer or fireball
+            if(rand > 0.6) aiAction.fireball = true;
+            else if (p2.x > p1.x) aiAction.left = true;
+            else aiAction.right = true;
+        } else if (dist < 100) {
+            // Close: Attack
+            if(rand > 0.5) aiAction.punch = true;
+            else aiAction.kick = true;
+        } else {
+            // Mid range: Move in or Jump
+            if(rand > 0.8) aiAction.up = true; // Random jump
+            else if (p2.x > p1.x) aiAction.left = true;
+            else aiAction.right = true;
+        }
+    }
+
+    // Defensive reaction
+    if (projectiles.some(proj => proj.active && proj.owner === p1 && Math.abs(proj.x - p2.x) < 200)) {
+        aiAction.up = true; // Jump over fireball
+    }
+}
+
+// --- Game Loop ---
+
+function update() {
+    if(!gameActive) return;
+
+    // Projectiles
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.x += p.vx;
+        p.el.style.left = p.x + 'px';
+
+        // OOB
+        if (p.x < -100 || p.x > window.innerWidth + 100) {
+            p.el.remove();
+            projectiles.splice(i, 1);
+            continue;
+        }
+
+        // Collision
+        const target = p.owner === p1 ? p2 : p1;
+        const pRect = { left: p.x, right: p.x + 40, top: p.y, bottom: p.y + 40 };
+        const tRect = { left: target.x + 20, right: target.x + 60, top: target.y, bottom: target.y + 120 };
+
+        if (checkCollision(pRect, tRect)) {
+            hitPlayer(target, FIREBALL_DMG, 'fireball');
+            createHitSpark(p.x, p.y);
+            p.el.remove();
+            projectiles.splice(i, 1);
+        }
+    }
+
+    // Player 1 Controls
+    const p1Ctrl = {
+        left: keys['a'],
+        right: keys['d'],
+        up: keys['w'],
+        down: keys['s'],
+        punch: keys['f'],
+        kick: keys['g'],
+        fireball: keys['e']
+    };
+    updatePlayer(p1, p1Ctrl);
+
+    // Player 2 Controls (or AI)
+    let p2Ctrl;
+    if(isCPU) {
+        updateAI();
+        p2Ctrl = aiAction;
+    } else {
+        p2Ctrl = {
+            left: keys['arrowleft'],
+            right: keys['arrowright'],
+            up: keys['arrowup'],
+            down: keys['arrowdown'],
+            punch: keys['k'],
+            kick: keys['l'],
+            fireball: keys['o']
+        };
+    }
+    updatePlayer(p2, p2Ctrl);
+
+    requestAnimationFrame(update);
+}
+
+// --- Game Flow ---
+
+function startGame(cpuMode) {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('dojo-modal').classList.add('hidden');
+    
+    isCPU = cpuMode;
+    gameActive = true;
+    timeLeft = 99;
+    
+    // Reset Stats
+    p1.hp = 100; p2.hp = 100;
+    p1.x = 100; p2.x = window.innerWidth - 200;
+    p1.hpEl.style.width = '100%'; p2.hpEl.style.width = '100%';
+    p1.hpEl.classList.remove('danger'); p2.hpEl.classList.remove('danger');
+    p1.state = 'idle'; p2.state = 'idle';
+    document.getElementById('ko-msg').classList.remove('show');
+
+    // Trigger AI Announcer Intro
+    callGemini(
+        "Write a 1-sentence hype intro for a fight between Ryu (Player 1) and Ken (Player 2).", 
+        ANNOUNCER_SYSTEM_PROMPT, 
+        'ai-text'
+    );
+
+    // Timer
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer').innerText = timeLeft;
+        if(timeLeft <= 0) endGame(p1.hp > p2.hp ? 'Player 1' : (p2.hp > p1.hp ? 'Player 2' : 'Draw'));
+    }, 1000);
+
+    // Audio Init
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+
+    update();
+}
+
+function endGame(winnerName) {
+    gameActive = false;
+    clearInterval(timerInterval);
+    
+    document.getElementById('ko-msg').classList.add('show');
+    Sound.playTone(100, 'sawtooth', 0.5); // Low boom
+
+    // Calculate Context for AI
+    const winner = winnerName === 'Player 1' ? p1 : p2;
+    const loser = winnerName === 'Player 1' ? 'Ken' : 'Ryu';
+    const hpLeft = winner.hp;
+    const timeRemaining = timeLeft;
+    
+    const contextPrompt = `${winnerName} just defeated ${loser}. The winner had ${hpLeft}% health remaining and there were ${timeRemaining} seconds on the clock. Write a 1-sentence excited reaction to this specific outcome.`;
+
+    setTimeout(() => {
+        document.getElementById('winner-text').innerText = winnerName.toUpperCase() + " WINS!";
+        document.getElementById('game-over-screen').classList.remove('hidden');
+        
+        // Trigger AI Victory Speech
+        callGemini(contextPrompt, ANNOUNCER_SYSTEM_PROMPT, 'ai-victory-speech');
+    }, 2000);
+}
+
+// --- Sensei Dojo Logic ---
+const dojoModal = document.getElementById('dojo-modal');
+const dojoInput = document.getElementById('dojo-input');
+const dojoChat = document.getElementById('dojo-chat-area');
+
+document.getElementById('btn-sensei').addEventListener('click', () => {
+    document.getElementById('start-screen').classList.add('hidden');
+    dojoModal.classList.remove('hidden');
+});
+
+document.getElementById('btn-close-dojo').addEventListener('click', () => {
+    dojoModal.classList.add('hidden');
+    document.getElementById('start-screen').classList.remove('hidden');
+});
+
+async function askSensei() {
+    const question = dojoInput.value;
+    if(!question) return;
+    
+    // Add user message
+    const userDiv = document.createElement('div');
+    userDiv.className = 'user-msg';
+    userDiv.innerText = "> " + question;
+    dojoChat.appendChild(userDiv);
+    
+    dojoInput.value = "";
+    
+    // Loading
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'sensei-msg loading-pulse';
+    loadingDiv.innerText = "Sensei is meditating...";
+    dojoChat.appendChild(loadingDiv);
+    dojoChat.scrollTop = dojoChat.scrollHeight;
+
+    // AI Call
+    const answer = await callGemini(question, SENSEI_SYSTEM_PROMPT, null);
+    
+    loadingDiv.remove();
+    
+    const senseiDiv = document.createElement('div');
+    senseiDiv.className = 'sensei-msg';
+    senseiDiv.innerText = "SENSEI: " + (answer || "My mind is cloudy...");
+    dojoChat.appendChild(senseiDiv);
+    dojoChat.scrollTop = dojoChat.scrollHeight;
+}
+
+document.getElementById('btn-ask-sensei').addEventListener('click', askSensei);
+dojoInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') askSensei(); });
+
+document.getElementById('btn-start').addEventListener('click', () => startGame(true));
+document.getElementById('btn-2p').addEventListener('click', () => startGame(false));
+
+</script>
+</body>
+</html>
